@@ -11,16 +11,19 @@ export default function ColorPicker({
   value,
   onChange,
   label,
+  swatches = SWATCHES,
 }: {
   value: string;
   onChange: (color: string) => void;
   label?: string;
+  /** Override the default palette (e.g. background-specific colors). */
+  swatches?: string[];
 }) {
   return (
     <div className="py-1.5">
       {label && <div className="mb-1 text-xs font-medium text-zinc-600">{label}</div>}
       <div className="flex flex-wrap items-center gap-1.5">
-        {SWATCHES.map((c) => (
+        {swatches.map((c) => (
           <button
             key={c}
             onClick={() => onChange(c)}
