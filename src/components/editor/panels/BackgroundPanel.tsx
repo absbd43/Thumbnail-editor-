@@ -11,7 +11,12 @@ import {
   setSolidBackground,
   updateBackgroundImage,
 } from "@/lib/fabricHelpers";
-import { GLASS_PRESETS, renderGlassBackground, type GlassPreset } from "@/lib/glassBackgrounds";
+import {
+  applyGlassOverlayToImage,
+  GLASS_PRESETS,
+  renderGlassBackground,
+  type GlassPreset,
+} from "@/lib/glassBackgrounds";
 import { fileToDataURL } from "@/components/dashboard/LogosTab";
 import BottomSheet from "@/components/ui/BottomSheet";
 import ColorPicker from "@/components/ui/ColorPicker";
@@ -56,7 +61,10 @@ export default function BackgroundPanel() {
   const commit = useCommit();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const bgImage = canvas?.backgroundImage as FabricImage | undefined;
+  const bgImage = canvas?.backgroundImage as
+    | (FabricImage & { originalSrc?: string; hasGlass?: boolean })
+    | undefined;
+  const [glassBusy, setGlassBusy] = useState(false);
   const isGradient = canvas?.backgroundColor instanceof Gradient;
 
   const [mode, setMode] = useState<Mode>(bgImage ? "image" : isGradient ? "gradient" : "solid");
@@ -77,6 +85,42 @@ export default function BackgroundPanel() {
       commit();
     } finally {
       setUploading(false);
+    }
+  };
+
+  /** Bake a frosted glass card onto the uploaded photo (re-runs from the original). */
+  const applyPhotoGlass = async (variant: "light" | "dark") => {
+    if (!bgImage) return;
+    setGlassBusy(true);
+    try {
+      const src = bgImage.originalSrc ?? bgImage.getSrc();
+      const dataUrl = await applyGlassOverlayToImage(
+        src,
+        canvas.getWidth(),
+        canvas.getHeight(),
+        variant
+      );
+      await setImageBackground(canvas, dataUrl);
+      const next = canvas.backgroundImage as FabricImage & {
+        originalSrc?: string;
+        hasGlass?: boolean;
+      };
+      next.originalSrc = src;
+      next.hasGlass = true;
+      commit();
+    } finally {
+      setGlassBusy(false);
+    }
+  };
+
+  const removePhotoGlass = async () => {
+    if (!bgImage?.originalSrc) return;
+    setGlassBusy(true);
+    try {
+      await setImageBackground(canvas, bgImage.originalSrc);
+      commit();
+    } finally {
+      setGlassBusy(false);
     }
   };
 
@@ -214,12 +258,45 @@ export default function BackgroundPanel() {
                   commit();
                 }}
               />
+              {/* Frosted glass card on top of the uploaded photo */}
+              <div className="mt-2 mb-1 text-xs font-medium text-zinc-600">
+                ছবির ওপর গ্লাস কার্ড
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => void applyPhotoGlass("light")}
+                  disabled={glassBusy}
+                  className="rounded-lg border border-zinc-200 bg-white/70 py-2.5 text-xs font-semibold text-zinc-700 active:border-indigo-400 disabled:opacity-50"
+                >
+                  ⬜ লাইট গ্লাস
+                </button>
+                <button
+                  onClick={() => void applyPhotoGlass("dark")}
+                  disabled={glassBusy}
+                  className="rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 text-xs font-semibold text-white active:border-indigo-400 disabled:opacity-50"
+                >
+                  ⬛ ডার্ক গ্লাস
+                </button>
+              </div>
+              {glassBusy && (
+                <p className="mt-1 text-center text-[10px] text-zinc-400">গ্লাস তৈরি হচ্ছে…</p>
+              )}
+              {bgImage.hasGlass && (
+                <button
+                  onClick={() => void removePhotoGlass()}
+                  disabled={glassBusy}
+                  className="mt-2 w-full rounded-lg border border-zinc-300 py-2.5 text-xs font-semibold text-zinc-600 active:bg-zinc-50 disabled:opacity-50"
+                >
+                  গ্লাস সরান (আসল ছবি ফিরিয়ে আনুন)
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   removeImageBackground(canvas);
                   commit();
                 }}
-                className="mt-1 w-full rounded-lg border border-red-200 py-2.5 text-xs font-semibold text-red-600 active:bg-red-50"
+                className="mt-2 w-full rounded-lg border border-red-200 py-2.5 text-xs font-semibold text-red-600 active:bg-red-50"
               >
                 ছবি সরিয়ে ফেলুন
               </button>

@@ -72,6 +72,33 @@ export const GLASS_PRESETS: GlassPreset[] = [
   },
 ];
 
+/** Frosted-glass card geometry, shared by presets and photo overlays. */
+function cardRect(w: number, h: number) {
+  return { gx: w * 0.08, gy: h * 0.24, gw: w * 0.84, gh: h * 0.52, radius: w * 0.045 };
+}
+
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  gx: number,
+  gy: number,
+  gw: number,
+  gh: number,
+  radius: number
+): void {
+  ctx.beginPath();
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(gx, gy, gw, gh, radius);
+  } else {
+    // Older browsers without roundRect
+    ctx.moveTo(gx + radius, gy);
+    ctx.arcTo(gx + gw, gy, gx + gw, gy + gh, radius);
+    ctx.arcTo(gx + gw, gy + gh, gx, gy + gh, radius);
+    ctx.arcTo(gx, gy + gh, gx, gy, radius);
+    ctx.arcTo(gx, gy, gx + gw, gy, radius);
+    ctx.closePath();
+  }
+}
+
 /** Renders a glass preset to a PNG data URL at the given canvas size. */
 export function renderGlassBackground(preset: GlassPreset, w: number, h: number): string {
   const c = document.createElement("canvas");
@@ -98,24 +125,8 @@ export function renderGlassBackground(preset: GlassPreset, w: number, h: number)
 
   // Frosted glass card in the text area
   if (preset.card) {
-    const gx = w * 0.08;
-    const gy = h * 0.24;
-    const gw = w * 0.84;
-    const gh = h * 0.52;
-    const radius = w * 0.045;
-
-    ctx.beginPath();
-    if (typeof ctx.roundRect === "function") {
-      ctx.roundRect(gx, gy, gw, gh, radius);
-    } else {
-      // Older browsers without roundRect
-      ctx.moveTo(gx + radius, gy);
-      ctx.arcTo(gx + gw, gy, gx + gw, gy + gh, radius);
-      ctx.arcTo(gx + gw, gy + gh, gx, gy + gh, radius);
-      ctx.arcTo(gx, gy + gh, gx, gy, radius);
-      ctx.arcTo(gx, gy, gx + gw, gy, radius);
-      ctx.closePath();
-    }
+    const { gx, gy, gw, gh, radius } = cardRect(w, h);
+    roundRectPath(ctx, gx, gy, gw, gh, radius);
     ctx.fillStyle = `rgba(255,255,255,${preset.card.fill * 0.55})`;
     ctx.fill();
     // Subtle top-light sheen
@@ -130,4 +141,79 @@ export function renderGlassBackground(preset: GlassPreset, w: number, h: number)
   }
 
   return c.toDataURL("image/png");
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.crossOrigin = "anonymous";
+    img.src = src;
+  });
+}
+
+/**
+ * Bakes a frosted glass card on top of a photo: the card area shows the
+ * photo blurred (two-pass downscale — works on every browser, no ctx.filter)
+ * with a light or dark tint, sheen and border. Returns a JPEG data URL
+ * (photos compress far better as JPEG, keeping auto-save payloads small).
+ */
+export async function applyGlassOverlayToImage(
+  src: string,
+  w: number,
+  h: number,
+  variant: "light" | "dark"
+): Promise<string> {
+  const img = await loadImage(src);
+
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d")!;
+
+  // Cover-fit the photo (same math as setImageBackground)
+  const scale = Math.max(w / img.width, h / img.height);
+  const dw = img.width * scale;
+  const dh = img.height * scale;
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+
+  // Strong soft blur: downscale twice, then scale back up smoothed
+  const down = (source: HTMLCanvasElement, factor: number) => {
+    const s = document.createElement("canvas");
+    s.width = Math.max(1, Math.round(w / factor));
+    s.height = Math.max(1, Math.round(h / factor));
+    const sctx = s.getContext("2d")!;
+    sctx.imageSmoothingEnabled = true;
+    sctx.drawImage(source, 0, 0, s.width, s.height);
+    return s;
+  };
+  const blurred = down(down(c, 12), 30);
+
+  const { gx, gy, gw, gh, radius } = cardRect(w, h);
+
+  ctx.save();
+  roundRectPath(ctx, gx, gy, gw, gh, radius);
+  ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(blurred, 0, 0, blurred.width, blurred.height, 0, 0, w, h);
+
+  // Tint + top sheen inside the card
+  ctx.fillStyle = variant === "light" ? "rgba(255,255,255,0.32)" : "rgba(10,15,30,0.42)";
+  ctx.fillRect(gx, gy, gw, gh);
+  const sheen = ctx.createLinearGradient(gx, gy, gx, gy + gh);
+  sheen.addColorStop(0, variant === "light" ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.08)");
+  sheen.addColorStop(0.5, "rgba(255,255,255,0)");
+  ctx.fillStyle = sheen;
+  ctx.fillRect(gx, gy, gw, gh);
+  ctx.restore();
+
+  // Border on top of everything
+  roundRectPath(ctx, gx, gy, gw, gh, radius);
+  ctx.lineWidth = Math.max(2, w * 0.0035);
+  ctx.strokeStyle = variant === "light" ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.4)";
+  ctx.stroke();
+
+  return c.toDataURL("image/jpeg", 0.92);
 }

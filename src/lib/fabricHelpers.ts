@@ -34,6 +34,9 @@ export const EXTRA_PROPS = [
   "lockScalingY",
   "lockRotation",
   "editable",
+  // Photo glass overlay: original photo kept so the glass can be removed
+  "originalSrc",
+  "hasGlass",
 ];
 
 /** Fabric object extended with our editor metadata. */
