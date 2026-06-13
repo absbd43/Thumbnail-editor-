@@ -13,6 +13,16 @@ const TOOLS: { id: PanelId; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
+    id: "shapes",
+    label: "শেপ",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="13" width="8" height="8" rx="1" /><circle cx="17" cy="7" r="4" />
+        <path d="M14 17h6" />
+      </svg>
+    ),
+  },
+  {
     id: "background",
     label: "ব্যাকগ্রাউন্ড",
     icon: (
@@ -67,12 +77,12 @@ export default function BottomToolbar() {
 
   return (
     <nav className="z-30 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto grid h-16 max-w-3xl grid-cols-6">
+      <div className="mx-auto grid h-16 max-w-3xl grid-cols-7">
         {TOOLS.map((t) => (
           <button
             key={t.id}
             onClick={() => openPanel(t.id)}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${
+            className={`flex flex-col items-center justify-center gap-0.5 text-[9px] font-medium ${
               activePanel === t.id ? "text-indigo-600" : "text-zinc-500"
             }`}
           >

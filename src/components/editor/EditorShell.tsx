@@ -15,12 +15,14 @@ import {
 import { applyTemplate, getTemplate } from "@/lib/templates";
 import { ensureFontsLoaded, preloadBuiltinFonts } from "@/lib/fonts";
 import { loadAllCustomFonts, saveDraftBackup } from "@/lib/idb";
+import { clipboardHasContent } from "@/lib/fabricHelpers";
 import type { BrandSettings, DesignRecord, LogoRecord } from "@/types";
 import CanvasStage from "./CanvasStage";
 import TopBar from "./TopBar";
 import BottomToolbar from "./BottomToolbar";
 import SelectionActions from "./SelectionActions";
 import TextPanel from "./panels/TextPanel";
+import ShapesPanel from "./panels/ShapesPanel";
 import BackgroundPanel from "./panels/BackgroundPanel";
 import LogoPanel from "./panels/LogoPanel";
 import LayersPanel from "./panels/LayersPanel";
@@ -62,6 +64,7 @@ export default function EditorShell() {
           setBrand(brand as BrandSettings);
         }
         useEditorStore.getState().setCustomFonts(customFonts);
+        useEditorStore.getState().setHasClipboard(clipboardHasContent());
 
         const id = params.get("id");
         if (id) {
@@ -244,6 +247,7 @@ export default function EditorShell() {
       <CanvasStage onReady={handleCanvasReady} />
       <SelectionActions />
       {activePanel === "text" && <TextPanel />}
+      {activePanel === "shapes" && <ShapesPanel />}
       {activePanel === "background" && <BackgroundPanel />}
       {activePanel === "logo" && <LogoPanel />}
       {activePanel === "layers" && <LayersPanel />}

@@ -3,7 +3,14 @@ import type { Canvas, FabricObject } from "fabric";
 import type { BrandSettings } from "@/types";
 import { serializeCanvas } from "@/lib/fabricHelpers";
 
-export type PanelId = "text" | "background" | "logo" | "layers" | "templates" | "export";
+export type PanelId =
+  | "text"
+  | "shapes"
+  | "background"
+  | "logo"
+  | "layers"
+  | "templates"
+  | "export";
 export type SaveStatus = "saved" | "saving" | "unsaved" | "error";
 
 const HISTORY_LIMIT = 50;
@@ -34,6 +41,9 @@ interface EditorState {
   customFonts: string[];
   brand: BrandSettings | null;
 
+  /** True when the object clipboard has copied content (enables Paste UI). */
+  hasClipboard: boolean;
+
   // actions
   setCanvas: (c: Canvas | null) => void;
   setDesign: (meta: { id: string; name: string; width: number; height: number }) => void;
@@ -50,6 +60,7 @@ interface EditorState {
   setBrand: (b: BrandSettings) => void;
   addCustomFont: (family: string) => void;
   setCustomFonts: (families: string[]) => void;
+  setHasClipboard: (v: boolean) => void;
 
   pushHistory: () => void;
   resetHistory: () => void;
@@ -75,6 +86,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isRestoring: false,
   customFonts: [],
   brand: null,
+  hasClipboard: false,
 
   setCanvas: (canvas) => set({ canvas }),
   setDesign: ({ id, name, width, height }) =>
@@ -94,6 +106,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   addCustomFont: (family) =>
     set((s) => ({ customFonts: s.customFonts.includes(family) ? s.customFonts : [...s.customFonts, family] })),
   setCustomFonts: (customFonts) => set({ customFonts }),
+  setHasClipboard: (hasClipboard) => set({ hasClipboard }),
 
   pushHistory: () => {
     const { canvas, isRestoring, history, historyIndex } = get();

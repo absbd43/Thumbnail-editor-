@@ -1,4 +1,5 @@
 import {
+  ActiveSelection,
   Canvas,
   FabricImage,
   FabricObject,
@@ -37,6 +38,11 @@ export const EXTRA_PROPS = [
   // Photo glass overlay: original photo kept so the glass can be removed
   "originalSrc",
   "hasGlass",
+  // Shapes
+  "isShape",
+  "shapeType",
+  "rx",
+  "ry",
 ];
 
 /** Fabric object extended with our editor metadata. */
@@ -46,6 +52,8 @@ export type EditorObject = FabricObject & {
   locked?: boolean;
   isLogo?: boolean;
   isWatermark?: boolean;
+  isShape?: boolean;
+  shapeType?: string;
 };
 
 export function uid(): string {
@@ -330,6 +338,75 @@ export function moveLayer(
   else if (dir === "top") canvas.bringObjectToFront(obj);
   else canvas.sendObjectToBack(obj);
   canvas.requestRenderAll();
+}
+
+// ── Copy / Cut / Paste ──────────────────────────────────────────
+//
+// Object-level clipboard for whole layers (text, shapes, images). Stored in
+// localStorage so it also survives switching between designs. Character-level
+// copy/paste inside text editing is left to the browser's native clipboard.
+
+const CLIPBOARD_KEY = "bte-clipboard";
+
+/** Copies the selected object(s) to the clipboard. Returns false if nothing selected. */
+export function copyActiveObjects(canvas: Canvas): boolean {
+  const actives = canvas.getActiveObjects();
+  if (actives.length === 0) return false;
+  const jsons = actives.map((o) => o.toObject(EXTRA_PROPS));
+  try {
+    localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(jsons));
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+/** Copies then removes the selected object(s). */
+export function cutActiveObjects(canvas: Canvas): boolean {
+  if (!copyActiveObjects(canvas)) return false;
+  canvas.remove(...canvas.getActiveObjects());
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
+  return true;
+}
+
+export function clipboardHasContent(): boolean {
+  try {
+    return !!localStorage.getItem(CLIPBOARD_KEY);
+  } catch {
+    return false;
+  }
+}
+
+/** Pastes clipboard object(s) with a small offset and selects them. */
+export async function pasteFromClipboard(canvas: Canvas): Promise<boolean> {
+  let jsons: Record<string, unknown>[];
+  try {
+    const raw = localStorage.getItem(CLIPBOARD_KEY);
+    if (!raw) return false;
+    jsons = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  if (!Array.isArray(jsons) || jsons.length === 0) return false;
+
+  const objects = (await util.enlivenObjects(jsons)) as EditorObject[];
+  if (objects.length === 0) return false;
+
+  objects.forEach((obj) => {
+    obj.id = uid();
+    obj.set({ left: (obj.left ?? 0) + 30, top: (obj.top ?? 0) + 30 });
+    canvas.add(obj);
+  });
+
+  if (objects.length === 1) {
+    canvas.setActiveObject(objects[0]);
+  } else {
+    const sel = new ActiveSelection(objects, { canvas });
+    canvas.setActiveObject(sel);
+  }
+  canvas.requestRenderAll();
+  return true;
 }
 
 // ── Serialization ───────────────────────────────────────────────

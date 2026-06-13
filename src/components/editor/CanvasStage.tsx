@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Canvas } from "fabric";
 import { useEditorStore } from "@/store/editorStore";
+import { copyActiveObjects, cutActiveObjects, pasteFromClipboard } from "@/lib/fabricHelpers";
 
 /**
  * Mounts the Fabric canvas at full design resolution and scales it with
@@ -73,21 +74,37 @@ export default function CanvasStage({ onReady }: { onReady: (c: Canvas) => void 
     fit();
     window.addEventListener("resize", fit);
 
-    // Desktop conveniences: delete key + ctrl-z/y
+    // Desktop conveniences: delete + undo/redo + copy/cut/paste.
+    // While editing text we never preventDefault, so the browser's native
+    // character-level copy/cut/paste keeps working inside the textbox.
     const onKeyDown = (e: KeyboardEvent) => {
       const active = canvas.getActiveObject();
       const editingText =
         active && "isEditing" in active && (active as { isEditing?: boolean }).isEditing;
+      const mod = e.ctrlKey || e.metaKey;
       if ((e.key === "Delete" || e.key === "Backspace") && active && !editingText) {
         canvas.remove(...canvas.getActiveObjects());
         canvas.discardActiveObject();
         canvas.requestRenderAll();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === "z" && !editingText) {
+      } else if (mod && e.key === "z" && !editingText) {
         e.preventDefault();
         void store().undo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === "y" && !editingText) {
+      } else if (mod && e.key === "y" && !editingText) {
         e.preventDefault();
         void store().redo();
+      } else if (mod && e.key === "c" && !editingText) {
+        if (copyActiveObjects(canvas)) {
+          e.preventDefault();
+          store().setHasClipboard(true);
+        }
+      } else if (mod && e.key === "x" && !editingText) {
+        if (cutActiveObjects(canvas)) {
+          e.preventDefault();
+          store().setHasClipboard(true);
+        }
+      } else if (mod && e.key === "v" && !editingText) {
+        e.preventDefault();
+        void pasteFromClipboard(canvas);
       }
     };
     window.addEventListener("keydown", onKeyDown);

@@ -1,10 +1,8 @@
 "use client";
 
-const SWATCHES = [
-  "#ffffff", "#000000", "#ef4444", "#f97316", "#facc15", "#22c55e",
-  "#10b981", "#06b6d4", "#3b82f6", "#60a5fa", "#8b5cf6", "#d946ef",
-  "#f472b6", "#fb7185", "#fde047", "#a3e635", "#94a3b8", "#1e293b",
-];
+import { SOLID_SWATCHES } from "@/lib/palette";
+
+const SWATCHES = SOLID_SWATCHES;
 
 /** Swatch row + native color input for custom colors. */
 export default function ColorPicker({

@@ -38,19 +38,6 @@ const GRADIENTS_DEEP: [string, string][] = [
   ["#020617", "#1e293b"], ["#1e1b4b", "#4c1d95"], ["#3f0d12", "#7f1d1d"],
 ];
 
-/** Background solid palette: lights first, then brights, then deeps. */
-const BG_SOLID_SWATCHES = [
-  // light
-  "#ffffff", "#f8fafc", "#fef9c3", "#fce7f3", "#e0f2fe", "#dcfce7",
-  "#fff7ed", "#ffe4e6", "#ede9fe", "#f0fdfa", "#fef3c7", "#e2e8f0",
-  // bright
-  "#ef4444", "#f97316", "#facc15", "#22c55e", "#06b6d4", "#3b82f6",
-  "#8b5cf6", "#f472b6",
-  // deep
-  "#0f172a", "#020617", "#18181b", "#312e81", "#064e3b", "#7f1d1d",
-  "#1e3a8a", "#3b0764", "#701a75", "#134e4a", "#431407", "#1c1917",
-];
-
 type Mode = "solid" | "gradient" | "image";
 
 /** Background panel: solid colors, gradients, uploaded images with blur & opacity. */
@@ -149,7 +136,6 @@ export default function BackgroundPanel() {
       {mode === "solid" && (
         <ColorPicker
           value={solid}
-          swatches={BG_SOLID_SWATCHES}
           onChange={(c) => {
             setSolid(c);
             setSolidBackground(canvas, c);
